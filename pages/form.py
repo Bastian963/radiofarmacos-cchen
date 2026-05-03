@@ -183,32 +183,44 @@ def render() -> None:
     if step == 1:
         _section_label("", "¿Quién eres?")
 
+        # Pre-llenado con la última sesión del conductor
+        nombre_prev = st.session_state.get("rf_conductor_nombre", "")
+        inst_prev   = st.session_state.get("rf_conductor_inst", "")
+
         nombre_conductor = st.text_input(
             "Nombre completo *",
+            value=nombre_prev,
             key="rf_form_nombre",
             placeholder="Ej: Juan Pérez González",
         )
         institucion_conductor = st.text_input(
-            "Institución a la que perteneces",
+            "Tu institución",
+            value=inst_prev,
             key="rf_form_inst_conductor",
             placeholder="Ej: Hospital San Juan de Dios",
         )
 
+        if nombre_prev:
+            st.caption("Tus datos se recordaron de la última vez.")
+
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-        if st.button("Continuar →", use_container_width=True, type="primary"):
+        if st.button("Continuar", use_container_width=True, type="primary"):
             if not nombre_conductor.strip():
                 st.error("Ingresa tu nombre para continuar.")
             else:
+                # Guardar en memoria persistente (sobrevive al reset del formulario)
+                st.session_state["rf_conductor_nombre"] = nombre_conductor.strip()
+                st.session_state["rf_conductor_inst"]   = institucion_conductor.strip()
                 st.session_state["rf_step"] = 2
                 st.rerun()
 
-    # ── PASO 2: Datos del envío ─────────────────────────────
+    # ── PASO 2: Destino + producto ──────────────────────────
     elif step == 2:
-        _section_label("", "Datos del envío")
+        _section_label("", "¿Qué y adónde?")
 
         # Institución destino
-        inst_opts = ["— Selecciona institución destino —"]
+        inst_opts = ["— Selecciona hospital / clínica —"]
         inst_map: dict[str, int] = {}
         if not instituciones_df.empty:
             for _, row in instituciones_df.iterrows():
@@ -218,7 +230,6 @@ def render() -> None:
         inst_opts.append("＋ Agregar nueva institución")
 
         destino_sel = st.selectbox("Institución destino *", inst_opts, key="rf_form_destino_sel")
-        destino_id: int | None = inst_map.get(destino_sel)
 
         nueva_inst_id: int | None = st.session_state.get("rf_form_nueva_inst_id")
         if destino_sel == "＋ Agregar nueva institución":
@@ -243,21 +254,21 @@ def render() -> None:
                                 "region": ni_region if ni_region != "— Selecciona —" else None,
                                 "tipo": ni_tipo,
                             })
-                            st.session_state["rf_form_nueva_inst_id"] = nueva.get("institucion_id")
+                            st.session_state["rf_form_nueva_inst_id"]     = nueva.get("institucion_id")
                             st.session_state["rf_form_nueva_inst_nombre"] = ni_nombre.strip()
-                            st.success(f"✓ '{ni_nombre.strip()}' agregada — quedará disponible tras aprobación.")
+                            st.success(f"'{ni_nombre.strip()}' agregada — quedará disponible tras aprobación.")
                         except Exception as e:
                             st.error(f"Error: {e}")
             nueva_inst_id = st.session_state.get("rf_form_nueva_inst_id")
             if nueva_inst_id:
-                st.info(f"📍 Se usará: {st.session_state.get('rf_form_nueva_inst_nombre','')}")
+                st.info(f"Se usará: {st.session_state.get('rf_form_nueva_inst_nombre','')}")
 
         # Isótopo
         iso_opts = ["— Selecciona radiofármaco —"]
         iso_map: dict[str, int] = {}
         if not isotopes_df.empty:
             for _, row in isotopes_df.iterrows():
-                lbl = f"{row['symbol']}"
+                lbl = row["symbol"]
                 if row.get("nombre_completo"):
                     lbl += f" — {row['nombre_completo']}"
                 iso_opts.append(lbl)
@@ -265,55 +276,76 @@ def render() -> None:
         iso_opts.append("Otro (especificar)")
 
         isotopo_sel = st.selectbox("Radiofármaco *", iso_opts, key="rf_form_isotopo_sel")
-        isotopo_id: int | None = iso_map.get(isotopo_sel)
-        isotopo_texto: str | None = None
         if isotopo_sel == "Otro (especificar)":
-            isotopo_texto = st.text_input("Especifica el radiofármaco", key="rf_form_isotopo_otro")
+            st.text_input("Especifica el radiofármaco", key="rf_form_isotopo_otro")
 
-        lote_numero = st.text_input("N° de lote / cápsula *", key="rf_form_lote", placeholder="Ej: CCH-2026-0042")
+        st.text_input(
+            "N° de lote / cápsula *",
+            key="rf_form_lote",
+            placeholder="Ej: CCH-2026-0042",
+            help="Tal como aparece en la etiqueta del paquete",
+        )
 
-        actividad_mbq = st.number_input("Actividad (MBq)", min_value=0.0, step=1.0, format="%.1f", key="rf_form_actividad")
-        if actividad_mbq > 0:
-            st.caption(f"≈ {actividad_mbq/37:.2f} mCi")
+        # ── Datos técnicos opcionales ───────────────────────
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+        with st.expander("Datos técnicos — ver etiqueta del paquete (opcional)"):
+            now_cl = _now_cl()
 
-        now_cl = _now_cl()
-        st.markdown("**Fecha y hora de referencia de actividad**")
-        c1, c2 = st.columns(2)
-        with c1:
-            ref_date = st.date_input("Fecha ref.", value=now_cl.date(), key="rf_form_ref_date", label_visibility="collapsed")
-        with c2:
-            ref_time = st.time_input("Hora ref.", value=now_cl.time().replace(second=0, microsecond=0), key="rf_form_ref_time", label_visibility="collapsed")
+            actividad_mbq = st.number_input(
+                "Actividad (MBq)", min_value=0.0, step=1.0, format="%.1f",
+                key="rf_form_actividad",
+                help="1 MBq = 0.027 mCi",
+            )
+            if actividad_mbq > 0:
+                st.caption(f"≈ {actividad_mbq/37:.2f} mCi")
 
-        st.markdown("**Salida de CCHEN**")
-        c3, c4 = st.columns(2)
-        with c3:
-            salida_date = st.date_input("Fecha salida", value=now_cl.date(), key="rf_form_sal_date", label_visibility="collapsed")
-        with c4:
-            salida_time = st.time_input("Hora salida", value=now_cl.time().replace(second=0, microsecond=0), key="rf_form_sal_time", label_visibility="collapsed")
+            st.markdown("**Fecha y hora de referencia de actividad**")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.date_input("Fecha ref.", value=now_cl.date(),
+                              key="rf_form_ref_date", label_visibility="collapsed")
+            with c2:
+                st.time_input("Hora ref.", value=now_cl.time().replace(second=0, microsecond=0),
+                              key="rf_form_ref_time", label_visibility="collapsed")
+
+            st.markdown("**Hora de salida de CCHEN**")
+            c3, c4 = st.columns(2)
+            with c3:
+                st.date_input("Fecha salida", value=now_cl.date(),
+                              key="rf_form_sal_date", label_visibility="collapsed")
+            with c4:
+                st.time_input("Hora salida", value=now_cl.time().replace(second=0, microsecond=0),
+                              key="rf_form_sal_time", label_visibility="collapsed")
 
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         col_back, col_next = st.columns(2)
         with col_back:
-            if st.button("← Volver", use_container_width=True):
+            if st.button("Volver", use_container_width=True):
                 st.session_state["rf_step"] = 1
                 st.rerun()
         with col_next:
-            if st.button("Continuar →", use_container_width=True, type="primary"):
+            if st.button("Continuar", use_container_width=True, type="primary"):
+                lote_numero = st.session_state.get("rf_form_lote", "").strip()
                 errs = []
-                if destino_sel == "— Selecciona institución destino —":
+                if destino_sel == "— Selecciona hospital / clínica —":
                     errs.append("Selecciona la institución destino.")
                 if destino_sel == "＋ Agregar nueva institución" and not nueva_inst_id:
                     errs.append("Agrega la institución antes de continuar.")
                 if isotopo_sel == "— Selecciona radiofármaco —":
                     errs.append("Selecciona el radiofármaco.")
-                if not lote_numero.strip():
+                if not lote_numero:
                     errs.append("El número de lote es requerido.")
                 if errs:
                     for e in errs:
                         st.error(e)
                 else:
+                    now_cl2 = _now_cl()
+                    ref_date  = st.session_state.get("rf_form_ref_date",  now_cl2.date())
+                    ref_time  = st.session_state.get("rf_form_ref_time",  now_cl2.time().replace(second=0, microsecond=0))
+                    sal_date  = st.session_state.get("rf_form_sal_date",  now_cl2.date())
+                    sal_time  = st.session_state.get("rf_form_sal_time",  now_cl2.time().replace(second=0, microsecond=0))
                     st.session_state["rf_form_ref_dt"] = datetime.datetime.combine(ref_date, ref_time, tzinfo=TZ).isoformat()
-                    st.session_state["rf_form_sal_dt"] = datetime.datetime.combine(salida_date, salida_time, tzinfo=TZ).isoformat()
+                    st.session_state["rf_form_sal_dt"] = datetime.datetime.combine(sal_date,  sal_time,  tzinfo=TZ).isoformat()
                     st.session_state["rf_step"] = 3
                     st.rerun()
 
@@ -321,27 +353,60 @@ def render() -> None:
     elif step == 3:
         _section_label("", "Condición de entrega")
 
-        now_cl = _now_cl()
-        st.markdown("**Hora de llegada**")
-        c1, c2 = st.columns(2)
-        with c1:
-            ll_date = st.date_input("Fecha", value=now_cl.date(), key="rf_form_ll_date", label_visibility="collapsed")
-        with c2:
-            ll_time = st.time_input("Hora", value=now_cl.time().replace(second=0, microsecond=0), key="rf_form_ll_time", label_visibility="collapsed")
-
+        # 1. Condición del embalaje — lo primero y más importante
         condicion_map = {"OK": "ok", "Revisar": "revisar", "Dañado": "danado"}
-        condicion_sel = st.radio("Estado del embalaje *", list(condicion_map.keys()), horizontal=True, key="rf_form_condicion")
+        condicion_sel = st.radio(
+            "Estado del embalaje *",
+            list(condicion_map.keys()),
+            horizontal=True,
+            key="rf_form_condicion",
+        )
 
-        temperatura_c = st.number_input("Temperatura (°C) — opcional", min_value=-30.0, max_value=60.0,
-                                         step=0.5, format="%.1f", value=None, key="rf_form_temp")
-        observaciones = st.text_area("Observaciones", height=80, key="rf_form_obs",
-                                      placeholder="Incidencias, condiciones especiales, etc.")
+        # 2. Temperatura (opcional)
+        temperatura_c = st.number_input(
+            "Temperatura (°C) — opcional",
+            min_value=-30.0, max_value=60.0,
+            step=0.5, format="%.1f",
+            value=None,
+            key="rf_form_temp",
+        )
+
+        # 3. Observaciones (opcional)
+        observaciones = st.text_area(
+            "Observaciones — opcional",
+            height=80,
+            key="rf_form_obs",
+            placeholder="Incidencias, condiciones especiales, etc.",
+        )
+
+        # 4. Hora de llegada — al fondo, auto = ahora
+        now_cl = _now_cl()
+        hora_str = now_cl.strftime("%H:%M")
+        st.markdown(
+            f"<div style='background:#F7FAFC;border-radius:10px;padding:10px 14px;"
+            f"font-size:0.85rem;color:#4A5568;margin:8px 0 4px'>"
+            f"Hora de llegada registrada: <b>{hora_str}</b></div>",
+            unsafe_allow_html=True,
+        )
+        modificar_hora = st.checkbox("Modificar hora de llegada", key="rf_form_mod_hora")
+        if modificar_hora:
+            c1, c2 = st.columns(2)
+            with c1:
+                ll_date = st.date_input("Fecha llegada", value=now_cl.date(),
+                                        key="rf_form_ll_date", label_visibility="collapsed")
+            with c2:
+                ll_time = st.time_input("Hora llegada",
+                                        value=now_cl.time().replace(second=0, microsecond=0),
+                                        key="rf_form_ll_time", label_visibility="collapsed")
+        else:
+            ll_date = now_cl.date()
+            ll_time = now_cl.time().replace(second=0, microsecond=0)
 
         st.divider()
 
         col_back, _ = st.columns([1, 2])
         with col_back:
-            if st.button("← Volver", use_container_width=True):
+            if st.button("Volver", use_container_width=True):
                 st.session_state["rf_step"] = 2
                 st.rerun()
 
@@ -354,7 +419,6 @@ def render() -> None:
                     origen_id = int(cchen.iloc[0]["institucion_id"])
 
             destino_sel2 = st.session_state.get("rf_form_destino_sel", "")
-            inst_opts2 = ["— Selecciona institución destino —"]
             inst_map2: dict[str, int] = {}
             if not instituciones_df2.empty:
                 for _, row in instituciones_df2.iterrows():
@@ -368,16 +432,17 @@ def render() -> None:
             iso_map2: dict[str, int] = {}
             if not isotopes_df.empty:
                 for _, row in isotopes_df.iterrows():
-                    lbl = f"{row['symbol']}"
+                    lbl = row["symbol"]
                     if row.get("nombre_completo"):
                         lbl += f" — {row['nombre_completo']}"
                     iso_map2[lbl] = int(row["isotope_id"])
-            isotopo_id2 = iso_map2.get(isotopo_sel2)
-            isotopo_texto2 = st.session_state.get("rf_form_isotopo_otro") if isotopo_sel2 == "Otro (especificar)" else None
+            isotopo_id2    = iso_map2.get(isotopo_sel2)
+            isotopo_texto2 = (st.session_state.get("rf_form_isotopo_otro")
+                              if isotopo_sel2 == "Otro (especificar)" else None)
 
             payload = {
-                "nombre_conductor":      st.session_state.get("rf_form_nombre", "").strip(),
-                "institucion_conductor": st.session_state.get("rf_form_inst_conductor", "").strip() or None,
+                "nombre_conductor":      st.session_state.get("rf_conductor_nombre", ""),
+                "institucion_conductor": st.session_state.get("rf_conductor_inst") or None,
                 "origen_id":             origen_id,
                 "destino_id":            final_destino,
                 "isotopo_id":            isotopo_id2,
@@ -396,7 +461,9 @@ def render() -> None:
             with st.spinner("Guardando…"):
                 try:
                     result = dl.insert_envio(payload)
-                    for key in [k for k in st.session_state if k.startswith("rf_form_") or k.startswith("rf_ni_")]:
+                    # Limpiar formulario pero conservar nombre y institución del conductor
+                    for key in [k for k in st.session_state
+                                if k.startswith("rf_form_") or k.startswith("rf_ni_")]:
                         del st.session_state[key]
                     st.session_state.pop("rf_step", None)
                     st.session_state["rf_submitted_envio"] = result
