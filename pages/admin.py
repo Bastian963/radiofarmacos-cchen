@@ -61,20 +61,72 @@ div[data-testid="stTabs"] button {
 </style>
 """
 
+# ── SVG icon paths (Heroicons outline) ────────────────────────────────────────
+_SVG_PATHS: dict[str, str] = {
+    "package":     '<path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+    "hospital":    '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+    "atom":        '<circle cx="12" cy="12" r="1"/><path d="M20.2 20.2c2.04-2.03.02-7.36-4.5-11.9-4.54-4.52-9.87-6.54-11.9-4.5-2.04 2.03-.02 7.36 4.5 11.9 4.54 4.52 9.87 6.54 11.9 4.5z"/><path d="M15.7 15.7c4.52-4.54 6.54-9.87 4.5-11.9-2.03-2.04-7.36-.02-11.9 4.5-4.52 4.54-6.54 9.87-4.5 11.9 2.03 2.04 7.36.02 11.9-4.5z"/>',
+    "alert":       '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    "map-pin":     '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+    "bar-chart":   '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+    "trending":    '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+    "clock":       '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    "file":        '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+    "user":        '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    "check":       '<polyline points="20 6 9 17 4 12"/>',
+    "check-circle":'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    "x-circle":    '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+    "download":    '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+    "edit":        '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+    "flask":       '<path d="M9 3h6"/><path d="M9 3v7L5 18a1 1 0 0 0 .93 1.37h12.14A1 1 0 0 0 19 18l-4-8V3"/>',
+    "layers":      '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+}
+
+
+def _ico(name: str, color: str = "#4A5568", size: int = 20) -> str:
+    path = _SVG_PATHS.get(name, "")
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" '
+        f'viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" '
+        f'stroke-linecap="round" stroke-linejoin="round">{path}</svg>'
+    )
+
+
+def _status_badge(estado: str) -> str:
+    cfg = {
+        "entregado": (BG_GREEN,   DARK_GREEN, P_GREEN,  "Entregado"),
+        "incidente": (BG_YELLOW,  "#744210",  P_YELLOW, "Incidente"),
+        "cancelado": ("#F7FAFC",  "#4A5568",  "#CBD5E0","Cancelado"),
+    }
+    bg, text, border, label = cfg.get(estado, ("#F7FAFC", "#4A5568", "#CBD5E0", estado.capitalize()))
+    return (
+        f"<span style='background:{bg};color:{text};border:1px solid {border};"
+        f"border-radius:20px;padding:2px 10px;font-size:0.7rem;font-weight:600;"
+        f"text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap'>{label}</span>"
+    )
+
 
 # ── Helpers HTML ───────────────────────────────────────────────────────────────
 
 def _kpi_card(label: str, value, sub: str = "", bg: str = BG_BLUE,
-              accent: str = P_BLUE, text_color: str = DARK_BLUE, icon: str = "") -> str:
-    sub_html = f'<div style="font-size:0.72rem;color:#718096;margin-top:2px">{sub}</div>' if sub else ""
-    icon_html = f'<div style="font-size:1.4rem;margin-bottom:6px">{icon}</div>' if icon else ""
+              accent: str = P_BLUE, text_color: str = DARK_BLUE,
+              icon_name: str = "", icon_color: str = "") -> str:
+    ic = icon_color or text_color
+    icon_html = (
+        f"<div style='margin-bottom:10px;opacity:0.85'>{_ico(icon_name, ic, 22)}</div>"
+        if icon_name else ""
+    )
+    sub_html = (
+        f'<div style="font-size:0.71rem;color:#718096;margin-top:3px">{sub}</div>'
+        if sub else ""
+    )
     return (
         f"<div style='background:{bg};border-radius:16px;padding:18px 20px 16px;"
         f"border:1.5px solid {accent};box-shadow:0 2px 8px rgba(0,0,0,0.04);"
         f"flex:1;min-width:0'>"
         f"{icon_html}"
         f"<div style='font-size:2rem;font-weight:800;color:{text_color};line-height:1.1'>{value}</div>"
-        f"<div style='font-size:0.72rem;color:#4A5568;margin-top:6px;font-weight:600;"
+        f"<div style='font-size:0.71rem;color:#4A5568;margin-top:6px;font-weight:600;"
         f"text-transform:uppercase;letter-spacing:0.5px'>{label}</div>"
         f"{sub_html}"
         f"</div>"
@@ -89,13 +141,18 @@ def _kpi_row(*cards: str) -> None:
     )
 
 
-def _section(title: str, icon: str = "") -> None:
+def _section(title: str, icon_name: str = "") -> None:
+    icon_html = (
+        f"<div style='flex-shrink:0'>{_ico(icon_name, DARK_BLUE, 18)}</div>"
+        if icon_name else ""
+    )
     st.markdown(
         f"<div style='display:flex;align-items:center;gap:10px;margin:28px 0 16px'>"
         f"<div style='width:4px;height:22px;"
         f"background:linear-gradient(180deg,{P_BLUE},{P_TEAL});"
         f"border-radius:3px;flex-shrink:0'></div>"
-        f"<span style='font-size:1rem;font-weight:700;color:#1A202C'>{icon} {title}</span>"
+        f"{icon_html}"
+        f"<span style='font-size:1rem;font-weight:700;color:#1A202C'>{title}</span>"
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -144,7 +201,13 @@ def _header() -> None:
             unsafe_allow_html=True,
         )
     with col_user:
-        st.caption(f"👤 {admin_name()}")
+        st.markdown(
+            f"<div style='display:flex;align-items:center;gap:5px;justify-content:flex-end;"
+            f"font-size:0.82rem;color:#4A5568;padding-top:4px'>"
+            f"{_ico('user', '#718096', 14)}"
+            f"<span>{admin_name()}</span></div>",
+            unsafe_allow_html=True,
+        )
         if st.button("Salir", key="rf_logout"):
             admin_logout()
             st.rerun()
@@ -166,10 +229,14 @@ def _section_kpis(envios: pd.DataFrame, pendientes: int) -> None:
     n_inc      = int((last30["estado"] == "incidente").sum()) if not last30.empty else 0
 
     _kpi_row(
-        _kpi_card("Entregas (30 días)", total,      icon="📦", bg=BG_BLUE,   accent=P_BLUE,   text_color=DARK_BLUE),
-        _kpi_card("Destinos únicos",    n_destinos, icon="🏥", bg=BG_TEAL,   accent=P_TEAL,   text_color=DARK_TEAL),
-        _kpi_card("Radiofarmacos",      n_isos,     icon="☢️", bg=BG_YELLOW, accent=P_YELLOW, text_color="#744210"),
-        _kpi_card("Incidentes",         n_inc,      icon="⚠️",
+        _kpi_card("Entregas (30 días)", total,
+                  icon_name="package",   bg=BG_BLUE,   accent=P_BLUE,   text_color=DARK_BLUE),
+        _kpi_card("Destinos únicos",    n_destinos,
+                  icon_name="hospital",  bg=BG_TEAL,   accent=P_TEAL,   text_color=DARK_TEAL),
+        _kpi_card("Radiofarmacos",      n_isos,
+                  icon_name="atom",      bg=BG_YELLOW, accent=P_YELLOW, text_color="#744210"),
+        _kpi_card("Incidentes",         n_inc,
+                  icon_name="alert",
                   bg=BG_ROSE if n_inc else BG_GREEN,
                   accent=P_ROSE if n_inc else P_GREEN,
                   text_color=DARK_ROSE if n_inc else DARK_GREEN,
@@ -178,17 +245,19 @@ def _section_kpis(envios: pd.DataFrame, pendientes: int) -> None:
 
     if pendientes > 0:
         st.markdown(
-            f"<div style='background:#FFFFF0;border:1.5px solid {P_YELLOW};border-radius:12px;"
-            f"padding:10px 16px;font-size:0.88rem;color:#744210;margin-bottom:16px'>"
-            f"⚠️ <b>{pendientes} institución(es)</b> pendientes de aprobación — "
-            f"ver sección <i>Gestión de instituciones</i></div>",
+            f"<div style='background:{BG_YELLOW};border-left:4px solid {P_ORANGE};"
+            f"border-radius:8px;padding:10px 16px;font-size:0.88rem;color:#744210;"
+            f"margin-bottom:16px;display:flex;align-items:center;gap:8px'>"
+            f"{_ico('alert', '#744210', 16)}"
+            f"<span><b>{pendientes} institución(es)</b> pendientes de aprobación — "
+            f"ver sección <i>Gestión de instituciones</i></span></div>",
             unsafe_allow_html=True,
         )
 
 
 def _section_map(envios: pd.DataFrame, instituciones: pd.DataFrame) -> None:
-    _section("Distribución geográfica", "🗺️")
-    tab1, tab2 = st.tabs(["📍 Por institución", "🗾 Por región"])
+    _section("Distribución geográfica", "map-pin")
+    tab1, tab2 = st.tabs(["Por institución", "Por región"])
     with tab1:
         render_marker_map(envios, instituciones)
     with tab2:
@@ -196,7 +265,7 @@ def _section_map(envios: pd.DataFrame, instituciones: pd.DataFrame) -> None:
 
 
 def _section_stats(envios: pd.DataFrame, instituciones: pd.DataFrame, isotopes: pd.DataFrame) -> None:
-    _section("Estadísticas", "📊")
+    _section("Estadísticas", "bar-chart")
 
     if envios.empty:
         st.info("Sin datos de entregas aún.")
@@ -258,15 +327,13 @@ def _section_stats(envios: pd.DataFrame, instituciones: pd.DataFrame, isotopes: 
             )
             st.plotly_chart(fig, use_container_width=True)
 
-    # Serie temporal
     if "fecha" in envios.columns:
-        _section("Tendencia de entregas", "📈")
+        _section("Tendencia de entregas", "trending")
 
         freq_label = st.radio("Agrupación", ["Diaria", "Semanal", "Mensual"],
                                horizontal=True, key="rf_freq")
         freq_map = {"Diaria": "D", "Semanal": "W", "Mensual": "ME"}
 
-        # Por isótopo
         if not isotopes.empty:
             merged_ts = envios.merge(isotopes[["isotope_id","symbol"]], left_on="isotopo_id",
                                       right_on="isotope_id", how="left")
@@ -298,7 +365,7 @@ def _section_stats(envios: pd.DataFrame, instituciones: pd.DataFrame, isotopes: 
 
 
 def _section_feed(envios: pd.DataFrame, instituciones: pd.DataFrame, isotopes: pd.DataFrame) -> None:
-    _section("Últimas entregas", "🕐")
+    _section("Últimas entregas", "clock")
 
     if envios.empty:
         st.info("Sin entregas registradas aún.")
@@ -312,12 +379,10 @@ def _section_feed(envios: pd.DataFrame, instituciones: pd.DataFrame, isotopes: p
     recent["symbol"] = recent["symbol"].fillna(recent.get("isotopo_texto","")).fillna("—")
     recent["color_hex"] = recent["color_hex"].fillna("#90CDF4")
 
-    estado_icons = {"entregado": "✅", "incidente": "⚠️", "cancelado": "❌"}
-
     for _, row in recent.iterrows():
-        hora = row.get("fecha_str", "—")
-        icon = estado_icons.get(row.get("estado",""), "📦")
+        hora  = row.get("fecha_str", "—")
         color = row.get("color_hex", "#90CDF4")
+        badge = _status_badge(row.get("estado", ""))
         st.markdown(
             f"<div style='display:flex;align-items:center;gap:12px;padding:10px 14px;"
             f"background:white;border-radius:12px;margin-bottom:6px;"
@@ -331,8 +396,8 @@ def _section_feed(envios: pd.DataFrame, instituciones: pd.DataFrame, isotopes: p
             f"{row.get('destino','—')} · {row.get('symbol','—')}</div>"
             f"</div>"
             f"<div style='text-align:right;flex-shrink:0'>"
-            f"<div style='font-size:0.75rem;color:#A0AEC0'>{hora}</div>"
-            f"<div style='font-size:1rem'>{icon}</div>"
+            f"<div style='font-size:0.73rem;color:#A0AEC0;margin-bottom:4px'>{hora}</div>"
+            f"{badge}"
             f"</div>"
             f"</div>",
             unsafe_allow_html=True,
@@ -340,7 +405,7 @@ def _section_feed(envios: pd.DataFrame, instituciones: pd.DataFrame, isotopes: p
 
 
 def _section_table(envios: pd.DataFrame, instituciones: pd.DataFrame, isotopes: pd.DataFrame) -> None:
-    _section("Registro completo", "📋")
+    _section("Registro completo", "file")
 
     if envios.empty:
         st.info("Sin entregas registradas.")
@@ -380,43 +445,47 @@ def _section_table(envios: pd.DataFrame, instituciones: pd.DataFrame, isotopes: 
 
     col_dl, col_upd = st.columns([2, 1])
     with col_dl:
-        st.download_button("⬇️ Descargar CSV", data=_make_csv(display[cols]),
+        st.download_button("Descargar CSV", data=_make_csv(display[cols]),
                            file_name=f"radiofarmacos_{datetime.date.today()}.csv", mime="text/csv")
     with col_upd:
-        with st.popover("✏️ Cambiar estado"):
+        with st.popover("Cambiar estado"):
             eid = st.number_input("ID envío", min_value=1, step=1, key="rf_upd_id")
             nest = st.selectbox("Estado", ["entregado","incidente","cancelado"], key="rf_upd_est")
             if st.button("Actualizar", key="rf_upd_btn"):
                 try:
                     dl.update_envio_estado(int(eid), nest)
-                    st.success("✓ Actualizado")
+                    st.success("Actualizado correctamente")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error: {e}")
 
 
 def _section_pendientes(instituciones_admin: pd.DataFrame) -> None:
-    _section("Gestión de instituciones", "🏥")
+    _section("Gestión de instituciones", "hospital")
 
     pendientes = (instituciones_admin[instituciones_admin["aprobada"] == False]
                   if not instituciones_admin.empty else pd.DataFrame())
 
     if pendientes.empty:
         st.markdown(
-            f"<div style='background:{BG_GREEN};border:1.5px solid {P_GREEN};border-radius:12px;"
-            f"padding:12px 16px;color:{DARK_GREEN};font-size:0.9rem'>"
-            f"✅ Sin instituciones pendientes de revisión.</div>",
+            f"<div style='background:{BG_GREEN};border-left:4px solid {P_GREEN};"
+            f"border-radius:8px;padding:12px 16px;color:{DARK_GREEN};font-size:0.9rem;"
+            f"display:flex;align-items:center;gap:8px'>"
+            f"{_ico('check-circle', DARK_GREEN, 16)}"
+            f"<span>Sin instituciones pendientes de revisión.</span></div>",
             unsafe_allow_html=True,
         )
     else:
         st.markdown(
-            f"<div style='background:{BG_YELLOW};border:1.5px solid {P_YELLOW};border-radius:12px;"
-            f"padding:12px 16px;color:#744210;font-size:0.9rem;margin-bottom:12px'>"
-            f"⚠️ <b>{len(pendientes)}</b> institución(es) propuestas por conductores esperan aprobación.</div>",
+            f"<div style='background:{BG_YELLOW};border-left:4px solid {P_ORANGE};"
+            f"border-radius:8px;padding:12px 16px;color:#744210;font-size:0.9rem;"
+            f"margin-bottom:12px;display:flex;align-items:center;gap:8px'>"
+            f"{_ico('alert', '#744210', 16)}"
+            f"<span><b>{len(pendientes)}</b> institución(es) propuestas por conductores esperan aprobación.</span></div>",
             unsafe_allow_html=True,
         )
         for _, row in pendientes.iterrows():
-            with st.expander(f"📍 {row['nombre']} — {row.get('ciudad','')} ({row.get('region','')})", expanded=True):
+            with st.expander(f"{row['nombre']} — {row.get('ciudad','')} ({row.get('region','')})", expanded=True):
                 c1, c2 = st.columns(2)
                 with c1:
                     lat_v = st.number_input("Latitud", value=float(row["lat"]) if row.get("lat") else -33.45,
@@ -426,18 +495,17 @@ def _section_pendientes(instituciones_admin: pd.DataFrame) -> None:
                                              step=0.001, format="%.6f", key=f"rf_lon_{row['institucion_id']}")
                 ca, cb = st.columns(2)
                 with ca:
-                    if st.button("✓ Aprobar", key=f"rf_apro_{row['institucion_id']}", type="primary"):
+                    if st.button("Aprobar", key=f"rf_apro_{row['institucion_id']}", type="primary"):
                         try:
                             dl.aprobar_institucion(int(row["institucion_id"]), lat=lat_v, lon=lon_v)
-                            st.success("Aprobada.")
+                            st.success("Institución aprobada.")
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error: {e}")
                 with cb:
                     st.caption(f"Tipo: {row.get('tipo','—')} · {str(row.get('created_at',''))[:10]}")
 
-    # Agregar isótopo
-    _section("Catálogo de isótopos", "⚗️")
+    _section("Catálogo de isótopos", "flask")
     with st.expander("Agregar nuevo isótopo"):
         c1, c2 = st.columns(2)
         with c1:
@@ -454,7 +522,7 @@ def _section_pendientes(instituciones_admin: pd.DataFrame) -> None:
                     dl.insert_isotope({"symbol": i_sym.strip(), "nombre_completo": i_nom.strip() or None,
                                        "vida_media_h": float(i_vmh) if i_vmh else None,
                                        "color_hex": i_col, "unidad_actividad": "MBq", "activo": True})
-                    st.success(f"✓ '{i_sym.strip()}' agregado.")
+                    st.success(f"'{i_sym.strip()}' agregado al catálogo.")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error: {e}")
@@ -466,10 +534,10 @@ def render(ctx: dict | None = None) -> None:
     _header()
 
     with st.spinner("Cargando datos…"):
-        envios_raw       = dl.load_envios()
-        instituciones    = dl.load_instituciones_aprobadas()
-        instituciones_adm= dl.load_instituciones_admin()
-        isotopes         = dl.load_isotopes()
+        envios_raw        = dl.load_envios()
+        instituciones     = dl.load_instituciones_aprobadas()
+        instituciones_adm = dl.load_instituciones_admin()
+        isotopes          = dl.load_isotopes()
 
     envios = _prep(envios_raw.copy())
 

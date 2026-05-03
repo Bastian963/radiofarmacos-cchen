@@ -43,7 +43,7 @@ def _header() -> None:
         f"<div style='text-align:center;padding:6px 0 12px'>"
         f"<div style='display:inline-block;background:{BLUE_SOFT};border-radius:20px;"
         f"padding:5px 16px;font-size:0.82rem;font-weight:600;color:{BLUE};"
-        f"letter-spacing:0.5px'>☢️ REGISTRO DE ENTREGA</div>"
+        f"letter-spacing:0.5px'>REGISTRO DE ENTREGA</div>"
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -116,8 +116,13 @@ def _confirmation_screen(envio: dict, instituciones_df, isotopes_df) -> None:
 
     st.markdown(
         f"<div style='text-align:center;padding:24px 0 8px'>"
-        f"<div style='font-size:3rem'>✅</div>"
-        f"<h3 style='color:#276749;margin:8px 0 4px'>¡Entrega registrada!</h3>"
+        f"<div style='width:56px;height:56px;border-radius:50%;background:#F0FFF4;"
+        f"border:2px solid #9AE6B4;display:flex;align-items:center;justify-content:center;"
+        f"margin:0 auto 12px'>"
+        f"<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' "
+        f"fill='none' stroke='#276749' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'>"
+        f"<polyline points='20 6 9 17 4 12'/></svg></div>"
+        f"<h3 style='color:#276749;margin:0 0 4px'>Entrega registrada</h3>"
         f"<p style='color:#4A5568;font-size:0.9rem;margin:0'>Todo quedó guardado correctamente.</p>"
         f"</div>",
         unsafe_allow_html=True,
@@ -176,7 +181,7 @@ def render() -> None:
 
     # ── PASO 1: Identificación ──────────────────────────────
     if step == 1:
-        _section_label("👤", "¿Quién eres?")
+        _section_label("", "¿Quién eres?")
 
         nombre_conductor = st.text_input(
             "Nombre completo *",
@@ -200,7 +205,7 @@ def render() -> None:
 
     # ── PASO 2: Datos del envío ─────────────────────────────
     elif step == 2:
-        _section_label("📦", "Datos del envío")
+        _section_label("", "Datos del envío")
 
         # Institución destino
         inst_opts = ["— Selecciona institución destino —"]
@@ -314,7 +319,7 @@ def render() -> None:
 
     # ── PASO 3: Condición ───────────────────────────────────
     elif step == 3:
-        _section_label("🔍", "Condición de entrega")
+        _section_label("", "Condición de entrega")
 
         now_cl = _now_cl()
         st.markdown("**Hora de llegada**")
@@ -324,7 +329,7 @@ def render() -> None:
         with c2:
             ll_time = st.time_input("Hora", value=now_cl.time().replace(second=0, microsecond=0), key="rf_form_ll_time", label_visibility="collapsed")
 
-        condicion_map = {"✓  OK": "ok", "⚠️  Revisar": "revisar", "✗  Dañado": "danado"}
+        condicion_map = {"OK": "ok", "Revisar": "revisar", "Dañado": "danado"}
         condicion_sel = st.radio("Estado del embalaje *", list(condicion_map.keys()), horizontal=True, key="rf_form_condicion")
 
         temperatura_c = st.number_input("Temperatura (°C) — opcional", min_value=-30.0, max_value=60.0,
@@ -340,7 +345,7 @@ def render() -> None:
                 st.session_state["rf_step"] = 2
                 st.rerun()
 
-        if st.button("📦  Registrar entrega", use_container_width=True, type="primary"):
+        if st.button("Registrar entrega", use_container_width=True, type="primary"):
             instituciones_df2 = dl.load_instituciones_aprobadas()
             origen_id: int | None = None
             if not instituciones_df2.empty:
