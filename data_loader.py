@@ -144,49 +144,27 @@ def load_envios() -> pd.DataFrame:
 # ─── Escritura ────────────────────────────────────────────────────────────────
 
 def insert_envio(data: dict) -> dict:
-    """Inserta un envío usando anon key (RLS permite INSERT público).
+    """Inserta un envío via service_role (server-side; nunca expuesto al browser).
 
-    Usa return=minimal para evitar el SELECT-after-INSERT que la política RLS
-    de anon bloquea (solo authenticated puede SELECT en rf_envios).
+    Usar service_role evita la complejidad de RLS para escrituras del formulario.
     """
-    cli = _client()
+    cli = _service_client()
     if cli is None:
         raise RuntimeError("Supabase no disponible.")
-    resp = cli.table("rf_envios").insert(data, returning="minimal").execute()
-    # return=minimal → resp.data is [] but HTTP 201 = éxito
-    return {"ok": True}
+    resp = cli.table("rf_envios").insert(data).execute()
+    return resp.data[0] if resp.data else {"ok": True}
 
 
 def insert_institucion_nueva(data: dict) -> dict:
-    """Inserta institución propuesta por conductor (aprobada=FALSE, anon key).
-
-    INSERT con anon key (RLS permite), luego consulta el ID via service_role
-    porque anon solo ve filas aprobadas (RLS bloquea SELECT de aprobada=FALSE).
-    """
-    cli = _client()
+    """Inserta institución propuesta por conductor via service_role (server-side)."""
+    cli = _service_client()
     if cli is None:
         raise RuntimeError("Supabase no disponible.")
     data.setdefault("aprobada", False)
     data.setdefault("es_origen", False)
-    nombre = data.get("nombre", "")
-    cli.table("rf_instituciones").insert(data, returning="minimal").execute()
+    resp = cli.table("rf_instituciones").insert(data).execute()
     load_instituciones_aprobadas.clear()
-
-    # Recuperar ID via service_role para que el conductor pueda continuar
-    svc = _service_client()
-    if svc and nombre:
-        resp = (
-            svc.table("rf_instituciones")
-            .select("institucion_id,nombre")
-            .eq("nombre", nombre)
-            .eq("aprobada", False)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if resp.data:
-            return resp.data[0]
-    return {"ok": True}
+    return resp.data[0] if resp.data else {"ok": True}
 
 
 def aprobar_institucion(institucion_id: int, lat: float | None = None, lon: float | None = None) -> None:
