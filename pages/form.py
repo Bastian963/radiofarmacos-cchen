@@ -5,6 +5,7 @@ Diseño con paleta pastel CCHEN 360.
 from __future__ import annotations
 
 import datetime
+import uuid
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -112,7 +113,7 @@ def _confirmation_screen(envio: dict, instituciones_df, isotopes_df) -> None:
         if not row.empty:
             isotopo_label = row.iloc[0]["symbol"]
 
-    ref = str(envio.get("uuid", ""))[:8].upper()
+    ref = str(envio.get("uuid_display") or envio.get("uuid", ""))[:8].upper()
 
     st.markdown(
         f"<div style='text-align:center;padding:24px 0 8px'>"
@@ -139,7 +140,7 @@ def _confirmation_screen(envio: dict, instituciones_df, isotopes_df) -> None:
         f"</div>"
         f"<table style='width:100%;border-collapse:collapse;font-size:0.9rem'>"
         f"<tr><td style='padding:5px 0;color:#718096;width:40%'>Conductor</td>"
-        f"<td style='padding:5px 0;font-weight:600;color:#2D3748'>{envio.get('nombre_conductor','')}</td></tr>"
+        f"<td style='padding:5px 0;font-weight:600;color:#2D3748'>{envio.get('nombre_conductor') or 'Anónimo'}</td></tr>"
         f"<tr><td style='padding:5px 0;color:#718096'>Destino</td>"
         f"<td style='padding:5px 0;font-weight:600;color:#2D3748'>{inst_nombre}</td></tr>"
         f"<tr><td style='padding:5px 0;color:#718096'>Radiofármaco</td>"
@@ -188,13 +189,13 @@ def render() -> None:
         inst_prev   = st.session_state.get("rf_conductor_inst", "")
 
         nombre_conductor = st.text_input(
-            "Nombre completo *",
+            "Nombre (opcional — puedes dejarlo en blanco)",
             value=nombre_prev,
             key="rf_form_nombre",
             placeholder="Ej: Juan Pérez González",
         )
         institucion_conductor = st.text_input(
-            "Tu institución",
+            "Tu institución (opcional)",
             value=inst_prev,
             key="rf_form_inst_conductor",
             placeholder="Ej: Hospital San Juan de Dios",
@@ -202,18 +203,17 @@ def render() -> None:
 
         if nombre_prev:
             st.caption("Tus datos se recordaron de la última vez.")
+        else:
+            st.caption("Puedes omitir tu nombre para mantener el anonimato.")
 
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
         if st.button("Continuar", use_container_width=True, type="primary"):
-            if not nombre_conductor.strip():
-                st.error("Ingresa tu nombre para continuar.")
-            else:
-                # Guardar en memoria persistente (sobrevive al reset del formulario)
-                st.session_state["rf_conductor_nombre"] = nombre_conductor.strip()
-                st.session_state["rf_conductor_inst"]   = institucion_conductor.strip()
-                st.session_state["rf_step"] = 2
-                st.rerun()
+            # Guardar en memoria persistente (sobrevive al reset del formulario)
+            st.session_state["rf_conductor_nombre"] = nombre_conductor.strip()
+            st.session_state["rf_conductor_inst"]   = institucion_conductor.strip()
+            st.session_state["rf_step"] = 2
+            st.rerun()
 
     # ── PASO 2: Destino + producto ──────────────────────────
     elif step == 2:
@@ -275,7 +275,7 @@ def render() -> None:
                 iso_map[lbl] = int(row["isotope_id"])
         iso_opts.append("Otro (especificar)")
 
-        isotopo_sel = st.selectbox("Radiofármaco *", iso_opts, key="rf_form_isotopo_sel")
+        isotopo_sel = st.selectbox("Radiofármaco (opcional)", iso_opts, key="rf_form_isotopo_sel")
         if isotopo_sel == "Otro (especificar)":
             st.text_input("Especifica el radiofármaco", key="rf_form_isotopo_otro")
 
@@ -331,8 +331,6 @@ def render() -> None:
                     errs.append("Selecciona la institución destino.")
                 if destino_sel == "＋ Agregar nueva institución" and not nueva_inst_id:
                     errs.append("Agrega la institución antes de continuar.")
-                if isotopo_sel == "— Selecciona radiofármaco —":
-                    errs.append("Selecciona el radiofármaco.")
                 if not lote_numero:
                     errs.append("El número de lote es requerido.")
                 if errs:
@@ -441,7 +439,7 @@ def render() -> None:
                               if isotopo_sel2 == "Otro (especificar)" else None)
 
             payload = {
-                "nombre_conductor":      st.session_state.get("rf_conductor_nombre", ""),
+                "nombre_conductor":      st.session_state.get("rf_conductor_nombre") or None,
                 "institucion_conductor": st.session_state.get("rf_conductor_inst") or None,
                 "origen_id":             origen_id,
                 "destino_id":            final_destino,
@@ -460,13 +458,16 @@ def render() -> None:
 
             with st.spinner("Guardando…"):
                 try:
-                    result = dl.insert_envio(payload)
+                    # Generar UUID client-side para el comprobante (el server genera el suyo propio)
+                    uuid_display = str(uuid.uuid4())
+                    dl.insert_envio(payload)
                     # Limpiar formulario pero conservar nombre y institución del conductor
                     for key in [k for k in st.session_state
                                 if k.startswith("rf_form_") or k.startswith("rf_ni_")]:
                         del st.session_state[key]
                     st.session_state.pop("rf_step", None)
-                    st.session_state["rf_submitted_envio"] = result
+                    payload["uuid_display"] = uuid_display
+                    st.session_state["rf_submitted_envio"] = payload
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error al guardar: {e}")

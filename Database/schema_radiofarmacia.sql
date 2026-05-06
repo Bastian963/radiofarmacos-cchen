@@ -84,7 +84,7 @@ CREATE POLICY "rf_instituciones_auth_update"
 CREATE TABLE IF NOT EXISTS rf_envios (
     envio_id              SERIAL PRIMARY KEY,
     uuid                  UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-    nombre_conductor      TEXT NOT NULL,
+    nombre_conductor      TEXT,
     institucion_conductor TEXT,
     origen_id             INTEGER REFERENCES rf_instituciones(institucion_id),
     destino_id            INTEGER REFERENCES rf_instituciones(institucion_id),
@@ -118,14 +118,39 @@ DROP POLICY IF EXISTS "rf_envios_auth_update"   ON rf_envios;
 
 -- Conductores pueden registrar nuevas entregas (sin autenticación)
 CREATE POLICY "rf_envios_public_insert"
-    ON rf_envios FOR INSERT WITH CHECK (TRUE);
+    ON rf_envios FOR INSERT
+    TO anon
+    WITH CHECK (TRUE);
 
 -- Solo admin lee y modifica los datos
 CREATE POLICY "rf_envios_auth_read"
     ON rf_envios FOR SELECT
-    USING (auth.role() = 'authenticated');
+    TO authenticated
+    USING (TRUE);
 
 CREATE POLICY "rf_envios_auth_update"
     ON rf_envios FOR UPDATE
-    USING (auth.role() = 'authenticated')
-    WITH CHECK (auth.role() = 'authenticated');
+    TO authenticated
+    USING (TRUE)
+    WITH CHECK (TRUE);
+
+-- ── Permisos de tabla (GRANT) ─────────────────────────────────────────────
+-- RLS controla qué filas; GRANT controla qué operaciones puede intentar cada rol.
+-- Sin estos GRANT, el anon key queda bloqueado a nivel de tabla incluso con
+-- políticas RLS permisivas.
+
+-- anon (conductores, formulario público)
+GRANT SELECT ON rf_isotopes      TO anon;
+GRANT SELECT ON rf_instituciones TO anon;
+GRANT INSERT ON rf_instituciones TO anon;   -- agregar nueva institución al vuelo
+GRANT INSERT ON rf_envios        TO anon;
+GRANT USAGE, SELECT ON SEQUENCE rf_envios_envio_id_seq        TO anon;
+GRANT USAGE, SELECT ON SEQUENCE rf_instituciones_institucion_id_seq TO anon;
+
+-- authenticated (admin dashboard)
+GRANT ALL ON rf_isotopes         TO authenticated;
+GRANT ALL ON rf_instituciones    TO authenticated;
+GRANT ALL ON rf_envios           TO authenticated;
+GRANT ALL ON SEQUENCE rf_envios_envio_id_seq                  TO authenticated;
+GRANT ALL ON SEQUENCE rf_instituciones_institucion_id_seq     TO authenticated;
+GRANT ALL ON SEQUENCE rf_isotopes_isotope_id_seq              TO authenticated;
